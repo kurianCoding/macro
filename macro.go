@@ -252,7 +252,7 @@ func main() {
 	log.SetFlags(0) // no date and time
 
 	if len(os.Args) != 3 {
-		log.Fatal("Usage: macroexpand input.go.tmpl output.go")
+		log.Fatal("Usage: macro input.go.tmpl output.go")
 	}
 
 	// Parse the template.
