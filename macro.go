@@ -14,6 +14,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -25,6 +26,8 @@ import (
 )
 
 const prefix = "MACRO_"
+
+var recursive = flag.Bool("r", false, "Expand macros recursively")
 
 type visitor struct {
 	macros       map[string]*ast.BlockStmt // macro definitions indexed by name
@@ -166,6 +169,39 @@ func (v *visitor) Expand(block *ast.BlockStmt) {
 	}
 }
 
+func (v *visitor) processBlock(stmt *ast.BlockStmt) {
+	v.blocks = append(v.blocks, stmt)
+	// Increase nesting level.
+	v.level++
+	stmts := make([]ast.Stmt, 0)
+
+	// Walk all the statements.
+	for _, stmt := range stmt.List {
+		v.lists = append(v.lists, nil)
+
+		ast.Walk(v, stmt)
+
+		i := len(v.lists) - 1
+		if v.lists[i] == nil {
+			// No macro usages in this statement,
+			// keep the original statement.
+			stmts = append(stmts, stmt)
+		} else {
+			// Replace the statement with an expanded
+			// list of statements.
+			stmts = append(stmts, v.lists[i]...)
+		}
+
+		v.lists = v.lists[:i]
+	}
+
+	// Decrease nesting level.
+	v.level--
+	// Replace the list of the block statements with a new (expanded) list.
+	v.blocks[v.level].List = stmts
+	v.blocks = v.blocks[:v.level]
+}
+
 func (v *visitor) Visit(node ast.Node) ast.Visitor {
 	switch node := node.(type) {
 	case *ast.FuncDecl:
@@ -179,6 +215,11 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 
 		// Strip the MACRO_ prefix from the name.
 		name = strings.TrimPrefix(name, prefix)
+
+		if *recursive {
+			// Recursively expand macros.
+			v.processBlock(node.Body)
+		}
 
 		// Save the macro body for later use.
 		v.macros[name] = node.Body
@@ -196,37 +237,7 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.BlockStmt:
 		// A code block.
-		// Add this code block to the stack of blocks.
-		v.blocks = append(v.blocks, node)
-		// Increase nesting level.
-		v.level++
-		stmts := make([]ast.Stmt, 0)
-
-		// Walk all the statements.
-		for _, stmt := range node.List {
-			v.lists = append(v.lists, nil)
-
-			ast.Walk(v, stmt)
-
-			i := len(v.lists) - 1
-			if v.lists[i] == nil {
-				// No macro usages in this statement,
-				// keep the original statement.
-				stmts = append(stmts, stmt)
-			} else {
-				// Replace the statement with an expanded
-				// list of statements.
-				stmts = append(stmts, v.lists[i]...)
-			}
-
-			v.lists = v.lists[:i]
-		}
-
-		// Decrease nesting level.
-		v.level--
-		// Replace the list of the block statements with a new (expanded) list.
-		v.blocks[v.level].List = stmts
-		v.blocks = v.blocks[:v.level]
+		v.processBlock(node)
 
 		return nil
 
@@ -256,14 +267,15 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 
 func main() {
 	log.SetFlags(0) // no date and time
+	flag.Parse()
 
-	if len(os.Args) != 3 {
-		log.Fatal("Usage: macro input.go.tmpl output.go")
+	if len(flag.Args()) != 2 {
+		log.Fatal("Usage: macro [-r] input.go.tmpl output.go")
 	}
 
 	// Parse the template.
 	fset := token.NewFileSet()
-	tree, err := parser.ParseFile(fset, os.Args[1], nil, parser.ParseComments)
+	tree, err := parser.ParseFile(fset, flag.Arg(0), nil, parser.ParseComments)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -288,7 +300,7 @@ func main() {
 	tree.Decls = decls
 
 	// Write the formatted result.
-	f, err := os.OpenFile(os.Args[2], os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(flag.Arg(1), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
