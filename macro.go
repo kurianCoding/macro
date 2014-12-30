@@ -147,6 +147,10 @@ func (v *visitor) transformAssignStmt(stmt *ast.AssignStmt) ast.Stmt {
 	}
 }
 
+func (v *visitor) transformExprStmt(stmt *ast.ExprStmt) ast.Stmt {
+	return &ast.ExprStmt{X: v.transformExpr(stmt.X)}
+}
+
 func (v *visitor) Expand(block *ast.BlockStmt) {
 	i := len(v.lists) - 1
 	v.lists[i] = make([]ast.Stmt, len(block.List))
@@ -154,6 +158,8 @@ func (v *visitor) Expand(block *ast.BlockStmt) {
 		switch stmt := stmt.(type) {
 		case *ast.AssignStmt:
 			v.lists[i][j] = v.transformAssignStmt(stmt)
+		case *ast.ExprStmt:
+			v.lists[i][j] = v.transformExprStmt(stmt)
 		default:
 			panic(fmt.Sprintf("unexpected type: %T", stmt))
 		}
