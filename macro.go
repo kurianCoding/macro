@@ -110,6 +110,13 @@ func (v *visitor) transformParenExpr(expr *ast.ParenExpr) ast.Expr {
 	}
 }
 
+func (v *visitor) transformSelectorExpr(expr *ast.SelectorExpr) ast.Expr {
+	return &ast.SelectorExpr{
+		X:   v.transformExpr(expr.X),
+		Sel: v.transformIdent(expr.Sel).(*ast.Ident),
+	}
+}
+
 func (v *visitor) transformExpr(expr ast.Expr) ast.Expr {
 	switch expr := expr.(type) {
 	case *ast.Ident:
@@ -126,6 +133,8 @@ func (v *visitor) transformExpr(expr ast.Expr) ast.Expr {
 		return v.transformCallExpr(expr)
 	case *ast.ParenExpr:
 		return v.transformParenExpr(expr)
+	case *ast.SelectorExpr:
+		return v.transformSelectorExpr(expr)
 	default:
 		panic(fmt.Sprintf("unexpected type: %T", expr))
 	}
