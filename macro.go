@@ -163,7 +163,7 @@ func (v *visitor) transformExprStmt(stmt *ast.ExprStmt) ast.Stmt {
 	return &ast.ExprStmt{X: v.transformExpr(stmt.X)}
 }
 
-func (v *visitor) Expand(block *ast.BlockStmt) {
+func (v *visitor) expand(block *ast.BlockStmt) {
 	i := len(v.lists) - 1
 	v.lists[i] = make([]ast.Stmt, len(block.List))
 	for j, stmt := range block.List {
@@ -264,7 +264,7 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 				}
 
 				// Expand this macro call.
-				v.Expand(repl)
+				v.expand(repl)
 
 				return nil
 			}
