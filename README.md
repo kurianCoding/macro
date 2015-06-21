@@ -1,4 +1,4 @@
-macro
+macro [![License](http://img.shields.io/:license-gpl3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0.html)
 =====
 
 Expanding macros in Go using go/ast.
@@ -10,8 +10,3 @@ Expanding macros in Go using go/ast.
 ## Usage
 
     macro input.go.tmpl output.go
-
-## License
-
-GNU GPLv3+
-
